@@ -26,11 +26,17 @@ Mat createAlphaChannel(const Mat& image, float alphaValue) {
     return alpha;
 }
 
+Mat createGrayscale(const Mat& image) {
+    Mat gray_image;
+    cvtColor(image, gray_image, COLOR_BGR2GRAY);
+
+    return gray_image;
+}
+
 void grayInCircle() {
     Mat image = loadImage("moscow.jpg");
 
-    Mat gray_image;
-    cvtColor(image, gray_image, COLOR_BGR2GRAY);
+    Mat gray_image = createGrayscale(image);
 
     Mat mask(image.size(), CV_8UC1, Scalar(0));
 
@@ -69,10 +75,10 @@ const string BlendMode[9] = {
 };
 
 float D(float x) {
-    if (x <= 255.0f * 0.25) {
-        return ((16 * x / 255.0f - 12) * x / 255.0f + 4) * x / 255.0f;
+    if (x <= 0.25f) {
+        return ((16 * x - 12) * x + 4) * x;
     }
-    return sqrt(x / 255.0f);
+    return sqrt(x);
 }
 
 float B(float Cb, float Cs, string mode) {
@@ -80,10 +86,10 @@ float B(float Cb, float Cs, string mode) {
         return Cs;
     }
     if (mode == "multiply") {
-        return Cs * Cb / 255.0f;
+        return Cs * Cb;
     }
     if (mode == "screen") {
-        return (1 - (1 - Cs / 255.0f) * (1 - Cb / 255.0f)) * 255.0f;
+        return (1 - (1 - Cs) * (1 - Cb));
     }
     if (mode == "darken") {
         return min(Cs, Cb);
@@ -95,25 +101,25 @@ float B(float Cb, float Cs, string mode) {
         return abs(Cs - Cb);
     }
     if (mode == "color_dodge") {
-        if (Cs == 255.0f) {
-            return 255.0f;
+        if (Cs == 1.0f) {
+            return 1.0f;
         }
 
-        return min(1.0f, Cb / (255.0f - Cs)) * 255.0f; 
+        return min(1.0f, Cb / (1.0f - Cs)); 
     }
     if (mode == "color_burn") {
         if (Cs == 0) {
             return 0;
         }
 
-        return (1 - min(1.0f, ( 255.0f - Cb ) / Cs )) * 255.0f;
+        return (1 - min(1.0f, ( 1.0f - Cb ) / Cs ));
     }
 
     if (mode == "soft_light") {
-        if (Cs <= 255.0f * 0.5) {
-            return (Cb / 255.0f - (1 - 2 * Cs / 255.0f) * Cb / 255.0f * (1 - Cb / 255.0f)) * 255.0f;
+        if (Cs <= 0.5f) {
+            return (Cb - (1 - 2 * Cs) * Cb * (1 - Cb));
         }
-        return (Cb / 255.0f + (2 * Cs / 255.0f - 1) * (D(Cb) - Cb / 255.0f)) * 255.0f;
+        return (Cb + (2 * Cs - 1) * (D(Cb) - Cb));
     }
 
     return 0;
@@ -121,23 +127,27 @@ float B(float Cb, float Cs, string mode) {
 
 
 void blending(string mode) {
-    Mat shaman = loadImage("shaman.jpg");
-    Mat russia = loadImage("russia.jpg");
+    Mat shaman  = loadImage("shaman.jpg");
+    Mat russia  = loadImage("russia.jpg");
+    Mat city    = loadImage("city.jpg");
+    Mat sunrise = loadImage("sunrise.jpg");
 
-    Mat alpha = createAlphaChannel(shaman, 0.5f);
-    Mat alpha1 = createAlphaChannel(russia, 0.8f);
+    Mat cityGray     = createGrayscale(city);
+    Mat sunriseGray  = createGrayscale(sunrise);
 
-    Mat result = Mat::zeros(shaman.size(), CV_8UC3);
+    Mat result  = Mat::zeros(shaman.size(), CV_8UC3);
 
     for (int y = 0; y < shaman.rows; y++) {
         for (int x = 0; x < shaman.cols; x++) {
-            Vec3b Cs = shaman.at<Vec3b>(y, x);
-            Vec3b Cb = russia.at<Vec3b>(y, x);
-            float alphaS = alpha.at<uchar>(y, x) / 255.0f;
-            float alphaB = alpha1.at<uchar>(y, x) / 255.0f;
+            Vec3b CsP    = shaman.at<Vec3b>(y, x);
+            Vec3b CbP    = russia.at<Vec3b>(y, x);
+            float alphaS = cityGray.at<uchar>(y, x)    / 255.0f;
+            float alphaB = sunriseGray.at<uchar>(y, x) / 255.0f;
 
             for (int c = 0; c < 3; c++) {
-                result.at<Vec3b>(y, x)[c] = (1 - alphaS) * alphaB * Cb[c] + (1 - alphaB) * alphaS * Cs[c] + alphaS * alphaB * B(Cb[c], Cs[c], mode);
+                float Cs = CsP[c] / 255.0f;
+                float Cb = CbP[c] / 255.0f;
+                result.at<Vec3b>(y, x)[c] = ((1 - alphaS) * alphaB * Cb + (1 - alphaB) * alphaS * Cs + alphaS * alphaB * B(Cb, Cs, mode)) * 255.0f;
             }
         }
     }
