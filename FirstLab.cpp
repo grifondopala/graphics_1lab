@@ -39,13 +39,21 @@ void grayInCircle() {
 
     circle(mask, center, radius, Scalar(255), -1);
 
-    Mat result;
-    gray_image.copyTo(result, mask);
+    Mat result(image.size(), CV_8UC4);
 
-    Mat with_white_background(image.size(), CV_8UC1, Scalar(255));
-    result.copyTo(with_white_background, mask);
+    for (int y = 0; y < image.rows; ++y) {
+        for (int x = 0; x < image.cols; ++x) {
+            if (mask.at<uchar>(y, x) == 255) {
+                uchar color = gray_image.at<uchar>(y, x);
+                result.at<Vec4b>(y, x) = Vec4b(color, color, color, 255);
+            }
+            else {
+                result.at<Vec4b>(y, x) = Vec4b(0, 0, 0, 0);
+            }
+        }
+    }
 
-    saveImage(&with_white_background, "moscowGray.jpg");
+    saveImage(&result, "moscowGray.png");
 }
 
 const string BlendMode[9] = {
