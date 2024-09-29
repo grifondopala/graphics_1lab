@@ -6,7 +6,7 @@ using namespace cv;
 using namespace std;
 
 void saveImage(Mat* image, string name) {
-    imwrite("D:/МИФИ/KG/FirstLab/FirstLab/result1/" + name, *image);
+    imwrite("D:/МИФИ/KG/FirstLab/FirstLab/result/" + name, *image);
 }
 
 Mat loadImage(string name) {
